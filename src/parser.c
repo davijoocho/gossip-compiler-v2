@@ -56,6 +56,7 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 		beg_idx++;
 	}
 
+	printf("    ");
 	end_idx = beg_idx;
 	while (src[end_idx] != '\n') {
 		fputc(src[end_idx], stdout);
@@ -63,7 +64,7 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 	}
 	fputc('\n', stdout);
 
-	for (int i = 0; i < err_token->start_idx - beg_idx; i++) {
+	for (int i = 0; i < err_token->start_idx - beg_idx + 4; i++) {
 		fputc(' ', stdout);
 	}
 	printf(ANSI_COLOR_GREEN "^" ANSI_COLOR_RESET "\n");
