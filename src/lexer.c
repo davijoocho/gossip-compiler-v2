@@ -257,8 +257,8 @@ void read_token(struct tokens* tokens, struct keyword_entry* keyword_table, char
 void construct_keyword_table(struct keyword_entry* keyword_table)
 {
     memset(keyword_table, 0, sizeof(struct keyword_entry) * KEYWORD_TABLE_SIZE);
-    char* keywords[] = {"None", "c8", "i32", "i64", "f32", "f64", "void", "string", "fn", "if", "elif", "else", "while", "ret", "struct"};
-    enum token_type types[] = {NONE, C8, I32, I64, F32, F64, VOID, STRING, FUNCTION, IF, ELIF, ELSE, WHILE, RETURN, STRUCT}; 
+    char* keywords[] = {"None", "c8", "i32", "i64", "f32", "f64", "void", "string", "if", "elif", "else", "while", "ret", "struct"};
+    enum token_type types[] = {NONE, C8, I32, I64, F32, F64, VOID, STRING, IF, ELIF, ELSE, WHILE, RETURN, STRUCT}; 
 
     for (int i = 0; i < N_KEYWORDS; i++) {
         char* keyword = keywords[i];
