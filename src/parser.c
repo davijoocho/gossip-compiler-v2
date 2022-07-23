@@ -22,19 +22,15 @@ struct program* syntax_analysis(struct tokens* tokens, char* src) {
 			capacity *= 2;
 		}
 
-		struct stmt* parsed_stmt = parse_def(tokens, src);
-
+		struct stmt* parsed_stmt = parse_stmt(tokens, src, 0, &error);
 		if (!error) {
-			if (parsed_stmt != NULL) {
-				program->stmts[program->n_stmts++] = parsed_stmt;
-			} else {
-				error = 1;
-			}
+			program->stmts[program->n_stmts++] = parsed_stmt;
 		}
 	}
 
 
 	if (error) {
+		// free memory
 		return NULL;
 	}
 
@@ -72,65 +68,119 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 
 
 
-// mode == 0 --> definition, mode == 1 --> statements
-void panic_mode(struct tokens* toks, int mode) {
-	if (mode == 0) {
-		enum token_type tok_type = toks->tokens[toks->idx]->type;
-		while (tok_type != STRUCT && tok_type != FUNCTION && tok_type != EOFF) {
-			tok_type = toks->tokens[++toks->idx]->type;
-		}
 
-	} else if (mode == 1) {
-		// TODO
-	}
-}
-
-
-
-
-struct stmt* parse_def(struct tokens* toks, char* src) {
+// advances toks->idx to the index of the next statement's beginning symbol
+void panic_mode(struct tokens* toks) {
 	struct token* cur_tok = toks->tokens[toks->idx];
-	struct stmt* def = NULL;
 
-	if (cur_tok->type == STRUCT) {
-		struct _struct* _struct = NULL;
-
-		// ERROR: CURRENT TOKEN IS NOT AN IDENTIFIER
+	while (!(cur_tok->type >= 100 && cur_tok->type <= 116)) {
 		cur_tok = toks->tokens[++toks->idx];
-		if (cur_tok->type != IDENTIFIER) {
-
-			printf("here\n");
-			print_err(cur_tok, src, "expected an identifier for a struct definition");
-			panic_mode(toks, 0);
-			return NULL;
-		}
-
-/*
-
-		//_struct->id = tokens->tokens[tokens->idx++];
-
-		// error: if token is not '{'
-		tokens->idx++;
-
-		while (tokens->tokens[tokens->idx]->type != '}') {
-
-		}
-		def->parse_stmt(tokens);
-		// error: if token is not '}'
-		//def->type = _STRUCT;
-		*/
-
-	}  else if (cur_tok->type == FUNCTION) {
-
-		//tokens->idx++;
-
-	} else {
-		// error top-level definitions must be struct or function definition
 	}
 
-	return def;
+	if (cur_tok->type == SEMI_COLON) {
+		toks->idx++;
+	}
 }
 
+
+
+
+struct token* expect(enum token_type expected_tok, struct token* cur_tok, struct tokens* toks, char* src, char* err_msg) {
+	/*
+	struct token* tok_to_ret = cur_tok;
+	if (cur_tok->type != expected_tok) {
+		print_error(cur_tok, src, err_msg);
+		panic_mode(toks);
+		// *error = 1;
+	} else {
+		toks->idx++;
+	}
+
+	return ret_tok
+	*/
+}
+
+
+// dont forget about pointers
+// if scope = 0, then only struct and functions should be allowed to be parsed
+
+struct stmt* parse_stmt(struct tokens* toks, char* src, int check_term_sym, int scope, int* error) {
+	struct token* cur_tok = toks->tokens[toks->idx++];
+
+	switch (cur_tok->type) {
+		case STRUCT: {
+			struct _stmt* struct_def = malloc(sizeof(struct _struct));
+
+			// ERROR
+			if (scope != 0) {
+				print_error(cur_tok, src, "cannot define a struct in a local context");
+				panic_mode(toks);
+				*error = 1;
+			}
+
+
+			// HERE
+
+			expect(IDENTIFIER, cur_tok, toks, src, "expected an identifier for struct definition");
+			// struct_def->id = cur_tok
+			expect(LEFT_BRACE, cur_tok, toks, src, "expected a '{' after struct identifier");
+
+
+
+			// ensure that parsed_stmts are variable declarations, else error
+			// while (not '}')
+			// parse_stmts
+			// expect ('}')
+
+
+
+		}
+		break;
+
+
+
+
+
+		// types
+		case C8:
+		case I32:
+		case I64:
+		case F32:
+		case F64:
+		case STRING:
+		case VOID:
+		break;
+
+		case IF:
+		case ELIF:
+		break;
+
+		case ELSE:
+		break;
+
+		case WHILE:
+		break;
+
+		case RETURN:
+		break;
+
+		case IDENTIFIER:
+		// check ipad for cases
+		break;
+
+		case LEFT_BRACE:
+		// block statement
+		break;
+
+
+		default:
+			print_error(cur_tok, src, "unknown statement");
+			panic_mode(toks);
+			*error = 1;
+		break;
+	}
+
+}
 
 
 
