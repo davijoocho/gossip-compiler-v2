@@ -156,7 +156,7 @@ struct program {
 
 struct program* syntax_analysis(struct tokens* tokens, char* src);
 void print_err(struct token* err_token, char* src, char* err_msg);
-void panic_mode(struct tokens* toks, int mode);
+void panic_mode(struct tokens* toks);
 struct stmt* parse_def(struct tokens* toks, char* src);
 
 

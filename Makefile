@@ -11,5 +11,5 @@ parser.o: ./src/parser.c ./include/parser.h
 	gcc -c -I./include ./src/parser.c
 
 clean:
-	del *.exe *.o *.d
+	rm *.exe *.o dcc
 

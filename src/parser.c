@@ -1,8 +1,4 @@
 
-
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "parser.h"
@@ -48,7 +44,7 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 	int beg_idx = 0;
 	int end_idx = 0;
 
-	printf(ANSI_COLOR_RED "ERROR " ANSI_COLOR_RESET "LINE (%d): %s\n", err_token->line, err_msg);
+	printf(ANSI_COLOR_RED "ERROR " ANSI_COLOR_RESET "(LINE %d): %s\n", err_token->line, err_msg);
 	while (line != err_token->line) {
 		if (src[beg_idx] == '\n') {
 			line++;
@@ -72,45 +68,65 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 
 
 
-// mode == 0 --> definition, mode == 1 --> statements
-void panic_mode(struct tokens* toks, int mode) {
-	if (mode == 0) {
-		enum token_type tok_type = toks->tokens[toks->idx]->type;
-		while (tok_type != STRUCT && tok_type != FUNCTION && tok_type != EOFF) {
-			tok_type = toks->tokens[++toks->idx]->type;
-		}
+void panic_mode(struct tokens* toks) {
+	struct token* cur_tok = toks->tokens[toks->idx];
+	while (!(cur_tok->type >= 100 && cur_tok->type <= 114)) {
+		cur_tok = toks->tokens[++toks->idx];
+	}
 
-	} else if (mode == 1) {
-		// TODO
+	if (cur_tok->type == SEMI_COLON) {
+		toks->idx++;
 	}
 }
 
 
 
 
+// scope is for parameters
+
+
 struct stmt* parse_def(struct tokens* toks, char* src) {
-	struct token* cur_tok = toks->tokens[toks->idx];
-	struct stmt* def = NULL;
 
-	if (cur_tok->type == STRUCT) {
-		struct _struct* _struct = NULL;
-
-		// ERROR: CURRENT TOKEN IS NOT AN IDENTIFIER
-		cur_tok = toks->tokens[++toks->idx];
-		if (cur_tok->type != IDENTIFIER) {
-
-			printf("here\n");
-			print_err(cur_tok, src, "expected an identifier for a struct definition");
-			panic_mode(toks, 0);
-			return NULL;
-		}
+	
 
 /*
+	struct token* cur_tok = toks->tokens[toks->idx];
+	struct stmt* def = malloc(sizeof(struct stmt));
 
-		//_struct->id = tokens->tokens[tokens->idx++];
+	if (cur_tok->type == STRUCT) {
+		toks->idx++;
+		struct _struct* _struct = malloc(sizeof(struct _struct));
 
-		// error: if token is not '{'
-		tokens->idx++;
+		// ERROR: CURRENT TOKEN IS NOT AN IDENTIFIER
+		cur_tok = toks->tokens[toks->idx];
+		if (cur_tok->type != IDENTIFIER) {
+			print_err(cur_tok, src, "expected an identifier");
+			panic_mode(toks);
+			return NULL;
+		}
+		toks->idx++;
+		_struct->id = cur_tok;
+
+		// ERROR: CURRENT TOKEN IS NOT A LEFT_BRACE
+		cur_tok = toks->tokens[toks->idx];
+		if (cur_tok->type != LEFT_BRACE) {
+			print_err(cur_tok, src, "expected a '{'");
+			panic_mode(toks);
+			return NULL;
+		}
+		toks->idx++;
+
+
+		
+
+
+		// TODO
+		// 
+		
+
+	
+
+
 
 		while (tokens->tokens[tokens->idx]->type != '}') {
 
@@ -118,9 +134,7 @@ struct stmt* parse_def(struct tokens* toks, char* src) {
 		def->parse_stmt(tokens);
 		// error: if token is not '}'
 		//def->type = _STRUCT;
-		*/
-
-	}  else if (cur_tok->type == FUNCTION) {
+	else if (cur_tok->type == FUNCTION) {
 
 		//tokens->idx++;
 
@@ -129,6 +143,7 @@ struct stmt* parse_def(struct tokens* toks, char* src) {
 	}
 
 	return def;
+	*/
 }
 
 
@@ -144,6 +159,17 @@ struct stmt* parse_def(struct tokens* toks, char* src) {
 
 
 
+
+
+struct a {
+}
+
+
+
+
+fn main() -> void {
+	struct a b = 
+}
 
 
 
