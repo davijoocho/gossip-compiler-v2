@@ -78,10 +78,12 @@ enum stmt_type {
 	_BLOCK, 
 	_IF, 
 	_RETURN, 
-	_FUNCTION 
+	_FUNCTION,
+	_VAR_DECL
 };
 
 struct stmt {
+	struct token* beg_tok;
 	enum stmt_type type;
 	void* content;
 };
@@ -90,6 +92,7 @@ struct _struct {
 	struct token* id;
 	struct stmt** fields;
 	int n_fields;
+	int max_fields;
 };
 
 struct _while {

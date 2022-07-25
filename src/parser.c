@@ -4,6 +4,9 @@
 #include "parser.h"
 
 
+
+// BAD BUT WHATEVER - WILL NOT FREE MEMORY IN THE CASE OF AN ERROR BECAUSE PROGRAM WILL EXIT ANYWAYS
+
 struct program* syntax_analysis(struct tokens* tokens, char* src) {
 	struct program* program = malloc(sizeof(struct program));
 	program->stmts = malloc(sizeof(struct stmt*) * 512);
@@ -17,16 +20,10 @@ struct program* syntax_analysis(struct tokens* tokens, char* src) {
 			program->stmts = realloc(program->stmts, sizeof(struct stmt*) * capacity * 2);
 			capacity *= 2;
 		}
-
-		struct stmt* parsed_stmt = parse_stmt(tokens, src, 0, &error);
-		if (!error) {
-			program->stmts[program->n_stmts++] = parsed_stmt;
-		}
+		struct stmt* parsed_stmt = parse_stmt(tokens, src, 0,  &error);
 	}
 
-
 	if (error) {
-		// free memory
 		return NULL;
 	}
 
@@ -81,59 +78,120 @@ void panic_mode(struct tokens* toks) {
 
 
 
-struct token* expect(enum token_type expected_tok, struct token* cur_tok, struct tokens* toks, char* src, char* err_msg) {
-	/*
-	struct token* tok_to_ret = cur_tok;
-	if (cur_tok->type != expected_tok) {
-		print_error(cur_tok, src, err_msg);
-		panic_mode(toks);
-		// *error = 1;
-	} else {
+struct token* expect(enum token_type expected_tok, struct tokens* toks, char* src, int* error, char* err_msg) {
+	struct token* check_tok = toks->tokens[toks->idx];
+	if (check_tok->type == expected_tok) {
 		toks->idx++;
+	} else {
+		*error = 1;
 	}
-
-	return ret_tok
-	*/
+	print_error(check_tok, src, err_msg);
+	panic_mode(toks);
+	return check_tok;
 }
 
 
-// dont forget about pointers
-// if scope = 0, then only struct and functions should be allowed to be parsed
 
-struct stmt* parse_stmt(struct tokens* toks, char* src, int check_term_sym, int scope, int* error) {
+struct stmt* parse_def(struct tokens* toks, char* src, int* error) {
+	// panic to 'struct' or 'fn'
+}
+
+
+struct stmt* parse_stmt(struct tokens* toks, char* src, int* error) {
+	// panic to ';' or 'statement keywords: if while ret identifier types'
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+// if scope = 0, then only struct and functions should be allowed to be parsed
+// FOR FUNCTION PARAM PARSING, do a do{} while(nxt == COMMA) stmt 
+
+struct stmt* parse_stmt(struct tokens* toks, char* src, int is_local, int* error) {
+ 	struct stmt* stmt = malloc(sizeof(struct stmt));
 	struct token* cur_tok = toks->tokens[toks->idx++];
+	stmt->beg_tok = cur_tok;
 
 	switch (cur_tok->type) {
 		case STRUCT: {
 			struct _stmt* struct_def = malloc(sizeof(struct _struct));
 
-			// ERROR
-			if (scope != 0) {
+			if (is_local) {
 				print_error(cur_tok, src, "cannot define a struct in a local context");
 				panic_mode(toks);
 				*error = 1;
 			}
 
+			struct_def->id = expect(IDENTIFIER, toks, src, error, "expected an identifier for struct definition");
+			expect(LEFT_BRACE, toks, src, error, "expected a '{' after struct identifier");
 
-			// HERE
+			struct_def->max_fields = 6;
+			struct_def->n_fields = 0;
+			struct_def->fields = malloc(sizeof(struct stmt*) * 6);
 
-			expect(IDENTIFIER, cur_tok, toks, src, "expected an identifier for struct definition");
-			// struct_def->id = cur_tok
-			expect(LEFT_BRACE, cur_tok, toks, src, "expected a '{' after struct identifier");
+			while (cur_tok != '}') {
+				struct stmt* parsed_stmt = parse_stmt(toks, src, 1, error);
+
+				if (parsed_stmt->type != _VAR_DECL) {
+					print_error(parsed_stmt->beg_tok, src, "statements besides variable declarations are not allowed in a struct definition");
+					*error = 1;
+				} else {
+					struct _vardecl* decl = parsed_stmt->content;
+					if (decl->value != NULL) {
+						print_error(decl->id, src, "cannot initialize struct fields");
+						*error = 1;
+					}
+				}
+
+				expect(SEMI_COLON, toks, src, error, "expected a ';' after struct field");
+
+				if (struct_def->n_fields == struct_def->max_fields) {
+					struct_def->fields = realloc(struct_def->fields, sizeof(struct stmt*) * struct_def->max_fields * 2);
+					struct_def->max_fields *= 2;
+				}
+
+				struct_def->fields[struct_def->n_fields++] = parsed_stmt;
+			}
 
 
 
-			// ensure that parsed_stmts are variable declarations, else error
-			// while (not '}')
-			// parse_stmts
-			// expect ('}')
+			// if EOFF then unclosed }
 
+			expect(RIGHT_BRACE, toks, src, error, "expected a '}' after struct definition");
 		}
 		break;
-
-
-
-
 
 		// types
 		case C8:
@@ -143,6 +201,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int check_term_sym, int 
 		case F64:
 		case STRING:
 		case VOID:
+		// variable declarations, dont forget pointers
 		break;
 
 		case IF:
@@ -173,7 +232,10 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int check_term_sym, int 
 			*error = 1;
 		break;
 	}
+
+	return stmt;
 }
+*/
 
 
 
