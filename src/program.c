@@ -37,7 +37,6 @@ int main(int argc, char** argv)
 	}
 
 	*/
-
 	struct program* program = syntax_analysis(tokens, src);
 
 

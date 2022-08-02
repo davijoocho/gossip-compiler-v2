@@ -5,7 +5,37 @@
 
 
 
-// BAD BUT WHATEVER - WILL NOT FREE MEMORY IN THE CASE OF AN ERROR BECAUSE PROGRAM WILL EXIT ANYWAYS
+
+
+// TODO
+void free_stmt(struct stmt* stmt) {
+	switch (stmt->type) {
+		case _STRUCT: {
+			struct _struct* _struct = stmt->content;
+			for (int i = 0; i < _struct->n_fields; i++) {
+				struct _vardecl* field = _struct->fields[i];
+				free_expr(field->value);
+				free(field);
+			}
+			free(_struct);
+		}
+		break;
+
+		default:
+		break;
+	}
+
+	free(stmt);
+}
+
+
+
+// TODO
+void free_expr(struct expr* expr) {
+}
+
+
+
 
 struct program* syntax_analysis(struct tokens* tokens, char* src) {
 	struct program* program = malloc(sizeof(struct program));
@@ -13,18 +43,36 @@ struct program* syntax_analysis(struct tokens* tokens, char* src) {
 	program->n_stmts = 512;
 
 	int capacity = 512;
-	int error = 0;
+	int global_error = 0;
+	int local_error = 0;
 
 	while (tokens->tokens[tokens->idx]->type != EOFF) {
-		if (program->n_stmts == capacity) {
-			program->stmts = realloc(program->stmts, sizeof(struct stmt*) * capacity * 2);
-			capacity *= 2;
+		if (program != NULL) {
+			if (program->n_stmts == capacity) {
+				program->stmts = realloc(program->stmts, sizeof(struct stmt*) * capacity * 2);
+				capacity *= 2;
+			}
 		}
-		struct stmt* parsed_stmt = parse_stmt(tokens, src, 0,  &error);
-	}
+	
+		local_error = 0;
+		struct stmt* parsed_stmt = parse_stmt(tokens, src, &local_error, &global_error, DONT_EXPECT_BLOCK);
 
-	if (error) {
-		return NULL;
+		if (global_error) {
+			if (program != NULL) {
+				for (int i = 0; i < program->n_stmts; i++) {
+					free_stmt(program->stmts[i]);
+				}
+				free(program->stmts);
+				free(program);
+				program = NULL;
+			}
+		} else {
+			if (program->n_stmts == capacity) {
+				program->stmts = realloc(program->stmts, sizeof(struct stmt*) * capacity * 2);
+				capacity *= 2;
+			}
+			program->stmts[program->n_stmts++] = parsed_stmt;
+		}
 	}
 
 	return program;
@@ -32,7 +80,7 @@ struct program* syntax_analysis(struct tokens* tokens, char* src) {
 
 
 
-void print_err(struct token* err_token, char* src, char* err_msg) {
+void print_error(struct token* err_token, char* src, char* err_msg) {
 	int line = 1;
 	int beg_idx = 0;
 	int end_idx = 0;
@@ -60,183 +108,142 @@ void print_err(struct token* err_token, char* src, char* err_msg) {
 }
 
 
+void panic(struct tokens* toks, enum token_type lbnd, enum token_type ubnd, int* local_error, int* global_error) {
+	struct token* tok = toks->tokens[toks->idx];
+	*local_error = *global_error = 1;
 
-
-// advances toks->idx to the index of the next statement's beginning symbol
-void panic_mode(struct tokens* toks) {
-	struct token* cur_tok = toks->tokens[toks->idx];
-
-	while (!(cur_tok->type >= 100 && cur_tok->type <= 116)) {
-		cur_tok = toks->tokens[++toks->idx];
+	while ((tok->type < lbnd || tok->type > ubnd) && tok->type != EOFF) {
+		tok = toks->tokens[++toks->idx];
 	}
 
-	if (cur_tok->type == SEMI_COLON) {
+	if (tok->type == SEMI_COLON) {
 		toks->idx++;
 	}
 }
 
+void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct token* cur_tok, struct tokens* toks, char* src, 
+	enum token_type err_lbnd, enum token_type err_ubnd, int* local_error, int* global_error, char* err_msg) {
 
-
-
-struct token* expect(enum token_type expected_tok, struct tokens* toks, char* src, int* error, char* err_msg) {
-	struct token* check_tok = toks->tokens[toks->idx];
-	if (check_tok->type == expected_tok) {
-		toks->idx++;
-	} else {
-		*error = 1;
+	if (cur_tok->type < expect_lbnd || cur_tok->type > expect_ubnd)  {
+		print_error(cur_tok, src, err_msg);
+		panic(toks, err_lbnd, err_ubnd, local_error, global_error);
 	}
-	print_error(check_tok, src, err_msg);
-	panic_mode(toks);
-	return check_tok;
 }
 
 
+struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* global_error, int expect_block) {
+	struct token* tok = toks->tokens[toks->idx++];
+	struct stmt* stmt = NULL;
 
-struct stmt* parse_def(struct tokens* toks, char* src, int* error) {
-	// panic to 'struct' or 'fn'
-}
+	switch (tok->type) {
 
-
-struct stmt* parse_stmt(struct tokens* toks, char* src, int* error) {
-	// panic to ';' or 'statement keywords: if while ret identifier types'
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-// if scope = 0, then only struct and functions should be allowed to be parsed
-// FOR FUNCTION PARAM PARSING, do a do{} while(nxt == COMMA) stmt 
-
-struct stmt* parse_stmt(struct tokens* toks, char* src, int is_local, int* error) {
- 	struct stmt* stmt = malloc(sizeof(struct stmt));
-	struct token* cur_tok = toks->tokens[toks->idx++];
-	stmt->beg_tok = cur_tok;
-
-	switch (cur_tok->type) {
 		case STRUCT: {
-			struct _stmt* struct_def = malloc(sizeof(struct _struct));
+			struct _struct* _struct = NULL;
+			struct token* id = toks->tokens[toks->idx++];
+			expect(IDENTIFIER, IDENTIFIER, tok, toks, src, 116, 117, local_error, global_error, "expected an identifier for struct definition"); 
 
-			if (is_local) {
-				print_error(cur_tok, src, "cannot define a struct in a local context");
-				panic_mode(toks);
-				*error = 1;
-			}
+			if (!*local_error) {
+				struct token* left_brace = toks->tokens[toks->idx++];
+				expect(LEFT_BRACE, LEFT_BRACE, left_brace, toks, src, 116, 117, local_error, global_error, "expected a '{'");
 
-			struct_def->id = expect(IDENTIFIER, toks, src, error, "expected an identifier for struct definition");
-			expect(LEFT_BRACE, toks, src, error, "expected a '{' after struct identifier");
+				if (!*local_error) {
+					if (!*global_error) {
+						_struct = malloc(sizeof(struct _struct));
+						_struct->fields = malloc(sizeof(struct _vardecl*) * 8);
+						_struct->n_fields = 0;
+						_struct->capacity = 8;
+					}
 
-			struct_def->max_fields = 6;
-			struct_def->n_fields = 0;
-			struct_def->fields = malloc(sizeof(struct stmt*) * 6);
+					tok = toks->tokens[toks->idx];
 
-			while (cur_tok != '}') {
-				struct stmt* parsed_stmt = parse_stmt(toks, src, 1, error);
+					// FIELD
+					if (tok->type != RIGHT_BRACE) {
+						do {
+							struct token* id = toks->tokens[toks->idx++];
+							expect(IDENTIFIER, IDENTIFIER, id, toks, src, 116, 117, local_error, global_error, "expected an identifier for struct field");
+							
+							if (!*local_error) {
+								expect(COLON, COLON, toks->tokens[toks->idx++], toks, src, 116, 117, local_error, global_error, "expected a ':'");
 
-				if (parsed_stmt->type != _VAR_DECL) {
-					print_error(parsed_stmt->beg_tok, src, "statements besides variable declarations are not allowed in a struct definition");
-					*error = 1;
-				} else {
-					struct _vardecl* decl = parsed_stmt->content;
-					if (decl->value != NULL) {
-						print_error(decl->id, src, "cannot initialize struct fields");
-						*error = 1;
+								if (!*local_error) {
+									int n_indirect = 0;
+									struct token* type = toks->tokens[toks->idx++];
+									expect(IDENTIFIER, VOID, type, toks, src, 116, 117, local_error, global_error, "invalid variable type");
+									
+									tok = toks->tokens[toks->idx];
+									while (tok->type == STAR) {
+										n_indirect++;
+										tok = toks->tokens[++toks->idx];
+									}
+
+									if (!*global_error) {
+										if (_struct->n_fields == _struct->capacity) {
+											_struct->fields = realloc(_struct->fields, sizeof(struct _vardecl*) * _struct->capacity * 2);
+											_struct->capacity *= 2;
+										}
+										struct _vardecl* field = _struct->fields[_struct->n_fields++] = malloc(sizeof(struct _vardecl));
+										field->value = NULL;
+										field->type = type;
+										field->id = id;
+										field->n_indirect = n_indirect;
+									}
+								}
+							}
+
+						} while (tok->type == COMMA && !*local_error);
+					}
+
+					// ERROR
+					if (*local_error && _struct != NULL) {
+						for (int i = 0; i < _struct->n_fields; i++) {
+							free(_struct->fields[i]);
+						}
+						free(_struct->fields);
+						free(_struct);
+					}
+
+					
+					// UNCLOSED 
+					tok = toks->tokens[toks->idx];
+					if (tok->type == EOFF || tok->type == STRUCT || tok->type == FUNCTION) {
+						*local_error = *global_error = 1;
+						print_error(left_brace, src, "unclosed '{'");
+					} else {
+						expect(RIGHT_BRACE, RIGHT_BRACE, tok, toks, src, 116, 117, local_error, global_error, "expected a '}'");
+					}
+
+					if (!*global_error) {
+						stmt = malloc(sizeof(struct stmt));
+						stmt->content = _struct;
+						stmt->type = _STRUCT;
 					}
 				}
-
-				expect(SEMI_COLON, toks, src, error, "expected a ';' after struct field");
-
-				if (struct_def->n_fields == struct_def->max_fields) {
-					struct_def->fields = realloc(struct_def->fields, sizeof(struct stmt*) * struct_def->max_fields * 2);
-					struct_def->max_fields *= 2;
-				}
-
-				struct_def->fields[struct_def->n_fields++] = parsed_stmt;
 			}
-
-
-
-			// if EOFF then unclosed }
-
-			expect(RIGHT_BRACE, toks, src, error, "expected a '}' after struct definition");
 		}
 		break;
 
-		// types
-		case C8:
-		case I32:
-		case I64:
-		case F32:
-		case F64:
-		case STRING:
-		case VOID:
-		// variable declarations, dont forget pointers
+
+
+		case FUNCTION:
 		break;
 
-		case IF:
-		case ELIF:
+		case RIGHT_BRACE:
 		break;
 
-		case ELSE:
+		case LET:
 		break;
 
-		case WHILE:
-		break;
-
-		case RETURN:
+		case DECL:
 		break;
 
 		case IDENTIFIER:
-		// check ipad for cases
 		break;
-
-		case LEFT_BRACE:
-		// block statement
-		break;
-
 
 		default:
-			print_error(cur_tok, src, "unknown statement");
-			panic_mode(toks);
-			*error = 1;
 		break;
 	}
 
+
 	return stmt;
 }
-*/
-
-
-
 

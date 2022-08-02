@@ -13,8 +13,10 @@
 #define ANSI_COLOR_RESET "\x1b[0m"
 
 
-// SUBJECT TO CHANGE BECAUSE OF RELOCATION INFORMATION IN COMPILING STAGE AND OTHER INFORMATION IN THE TYPE CHECKING PHASE
+#define EXPECT_BLOCK 1
+#define DONT_EXPECT_BLOCK 0
 
+// SUBJECT TO CHANGE BECAUSE OF RELOCATION INFORMATION IN COMPILING STAGE AND OTHER INFORMATION IN THE TYPE CHECKING PHASE
 
 enum expr_type {
 	BINARY,
@@ -83,16 +85,20 @@ enum stmt_type {
 };
 
 struct stmt {
-	struct token* beg_tok;
 	enum stmt_type type;
 	void* content;
 };
 
+struct _block {
+	struct stmt** stmts;
+	int n_stmts;
+};
+
 struct _struct {
 	struct token* id;
-	struct stmt** fields;
+	struct _vardecl** fields;
 	int n_fields;
-	int max_fields;
+	int capacity;
 };
 
 struct _while {
@@ -111,34 +117,26 @@ struct _procedure {
 	int n_args;
 };
 
-struct _block {
-	struct stmt** stmts;
-	int n_stmts;
-};
-
-
 struct _if {
 	struct expr* cond;
 	struct stmt* body;
-	struct _if** _elifs;
-	int n_elifs;
+	struct _if** branches;
+	int n_branches;
 	struct stmt* _else;
 };
 
 struct _return {
-	struct token* lexeme;
 	struct expr* value;
 };
 
 struct _function {
 	struct token* id;
-	struct token* return_type;
+	struct token* ret_type;
 	struct stmt** params;
 	int n_params;
 	struct stmt* body;
 
-	// information for type checker 
-	//char* ret_type_repr;
+	// information for type checker + compiler
 };
 
 struct _vardecl {
@@ -147,8 +145,9 @@ struct _vardecl {
 	struct expr* value;
 	int n_indirect;
 	int array_literal;
-	// information for type checker
+	// information for type checker + compiler
 };
+
 
 struct program {
 	struct stmt** stmts;
@@ -156,50 +155,15 @@ struct program {
 };
 
 
-
 struct program* syntax_analysis(struct tokens* tokens, char* src);
-void print_err(struct token* err_token, char* src, char* err_msg);
-void panic_mode(struct tokens* toks);
-struct stmt* parse_def(struct tokens* toks, char* src);
+void print_error(struct token* err_token, char* src, char* err_msg);
+void panic(struct tokens* toks, enum token_type lbnd, enum token_type ubnd, int* local_error, int* global_error);
 
+void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct token* cur_tok, struct tokens* toks, char* src, enum token_type err_lbnd, enum token_type err_ubnd, int* local_error, int* global_error, char* err_msg);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* global_error, int expect_block);
+void free_stmt(struct stmt* stmt);
+void free_expr(struct expr* expr);
 
 
 

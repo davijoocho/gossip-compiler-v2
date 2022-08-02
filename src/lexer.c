@@ -51,6 +51,7 @@ void read_token(struct tokens* tokens, struct keyword_entry* keyword_table, char
         case '~': add_token(tokens, BIT_NOT, *s_idx, *e_idx, *line, 0); break;
         case '^': add_token(tokens, BIT_XOR, *s_idx, *e_idx, *line, 30); break;
         case ';': add_token(tokens, SEMI_COLON, *s_idx, *e_idx, *line, 0); break;
+		case ':': add_token(tokens, COLON, *s_idx, *e_idx, *line, 0); break;
         case '+': add_token(tokens, PLUS, *s_idx, *e_idx, *line, 90); break;
         case '\n': 
 			*line += 1; 
@@ -257,8 +258,8 @@ void read_token(struct tokens* tokens, struct keyword_entry* keyword_table, char
 void construct_keyword_table(struct keyword_entry* keyword_table)
 {
     memset(keyword_table, 0, sizeof(struct keyword_entry) * KEYWORD_TABLE_SIZE);
-    char* keywords[] = {"None", "c8", "i32", "i64", "f32", "f64", "void", "string", "if", "elif", "else", "while", "ret", "struct"};
-    enum token_type types[] = {NONE, C8, I32, I64, F32, F64, VOID, STRING, IF, ELIF, ELSE, WHILE, RETURN, STRUCT}; 
+    char* keywords[] = {"None", "c8", "i32", "i64", "f32", "f64", "void", "string", "if", "elif", "else", "while", "ret", "struct", "fn", "let", "decl"};
+    enum token_type types[] = {NONE, C8, I32, I64, F32, F64, VOID, STRING, IF, ELIF, ELSE, WHILE, RETURN, STRUCT, FUNCTION, LET, DECL}; 
 
     for (int i = 0; i < N_KEYWORDS; i++) {
         char* keyword = keywords[i];
