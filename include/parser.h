@@ -132,8 +132,9 @@ struct _return {
 struct _function {
 	struct token* id;
 	struct token* ret_type;
-	struct stmt** params;
+	struct _vardecl** params;
 	int n_params;
+    int capacity;
 	struct stmt* body;
 
 	// information for type checker + compiler
@@ -156,10 +157,11 @@ struct program {
 
 
 struct program* syntax_analysis(struct tokens* tokens, char* src);
-void print_error(struct token* err_token, char* src, char* err_msg);
+void print_error(struct token* err_token, struct tokens* toks, char* src, char* err_msg);
 void panic(struct tokens* toks, enum token_type lbnd, enum token_type ubnd, int* local_error, int* global_error);
 
-void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct token* cur_tok, struct tokens* toks, char* src, enum token_type err_lbnd, enum token_type err_ubnd, int* local_error, int* global_error, char* err_msg);
+void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct token* cur_tok, struct token* err_token, struct tokens* toks, char* src, 
+	enum token_type err_lbnd, enum token_type err_ubnd, int* local_error, int* global_error, char* err_msg);
 
 struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* global_error, int expect_block);
 void free_stmt(struct stmt* stmt);

@@ -5,6 +5,8 @@
 #include <stdio.h>
 
 
+// DO NOT ALLOW TABS
+
 int compute_hash(char* s_idx, int len)
 {
     int hash = 0;
