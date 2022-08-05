@@ -132,9 +132,12 @@ struct _return {
 struct _function {
 	struct token* id;
 	struct token* ret_type;
+	int n_indirect;
+
 	struct _vardecl** params;
 	int n_params;
     int capacity;
+
 	struct stmt* body;
 
 	// information for type checker + compiler

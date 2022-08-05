@@ -170,9 +170,9 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
                         tok = toks->tokens[toks->idx];
 
                         if (tok->type != RIGHT_BRACE) {
-                            int is_comma = 0;
+							int is_comma = 0;
                             do {
-                                is_comma = 0;
+								is_comma = 0;
                                 struct token* field_id = toks->tokens[toks->idx];
                                 expect(IDENTIFIER, IDENTIFIER, field_id, field_id, toks, src, RIGHT_BRACE, RIGHT_BRACE, local_error, global_error, "expected a struct field");
                                 
@@ -189,6 +189,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
                                             while (tok->type == STAR) {
                                                 n_indirect++;
                                                 tok = toks->tokens[++toks->idx];
+
                                             }
 
                                             if (tok->type == COMMA) {
@@ -214,7 +215,6 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
                             } while (is_comma && !*local_error);
 
                             // ACCOMODATE THE FACT THAT NONEXISTENCE OF COMMA DOESNT PANIC TO RIGHT BRACE
-
                             tok = toks->tokens[toks->idx];
                             if (tok->type != RIGHT_BRACE) {
                                 print_error(tok, toks, src, "expected a '}'");
@@ -240,6 +240,8 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
                             stmt->content = _struct;
                             stmt->type = _STRUCT;
                         }
+
+
                     }
                 }
             }
@@ -249,6 +251,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
 
 		case FUNCTION: {
+
 
             // fn a(i32 a, ...) -> i64 { }
             toks->idx++;
@@ -261,16 +264,17 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
                 tok = toks->tokens[toks->idx];
                 expect(LEFT_PAREN, LEFT_PAREN, tok, tok, toks, src, STRUCT, FUNCTION, local_error, global_error, "expected a '('");
 
-
                 // LEFT_PAREN
                 if (!*local_error) {
                     if (!*global_error) {
                         fn = malloc(sizeof(struct _function));
-                        fn->param = malloc(sizeof(struct _vardecl*) * 8);
+                        fn->params = malloc(sizeof(struct _vardecl*) * 8);
                         fn->n_params = 0;
                         fn->capacity = 8;
                     }
 
+
+					// PARAMETERS
                     tok = toks->tokens[toks->idx];
                     if (tok->type != RIGHT_PAREN) {
                         int is_comma = 0;
@@ -281,20 +285,90 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
                             if (!*local_error) {
                                 expect(COLON, COLON, toks->tokens[toks->idx], toks->tokens[toks->idx], toks, src, STRUCT, FUNCTION, local_error, global_error, "expected a ':'");
+
                                 if (!*local_error) {
-                                    // here
+									int n_indirect = 0;
+									struct token* param_type = toks->tokens[toks->idx];
+									expect(IDENTIFIER, VOID, param_type, param_type, toks, src, STRUCT, FUNCTION, local_error, global_error, "invalid variable type");
+
+									if (!*local_error) {
+										tok = toks->tokens[toks->idx];
+										while (tok->type == '*') {
+											n_indirect++;
+											tok = toks->tokens[++toks->idx];
+										}
+
+										if (tok->type == COMMA) {
+											toks->idx++;
+											is_comma = 1;
+										}
+									}
+
+									if (!*global_error) {
+										if (fn->n_params == fn->capacity) {
+											fn->params = realloc(fn->params, sizeof(struct _vardecl*) * fn->capacity * 2);
+											fn->capacity *= 2;
+										}
+										struct _vardecl* param = fn->params[fn->n_params++] = malloc(sizeof(struct _vardecl));
+										param->value = NULL;
+										param->type = param_type;
+										param->id = param_id;
+										param->n_indirect = n_indirect;
+									}
                                 }
                             }
-
                         } while (is_comma && !*local_error);
-                    }
+
+						if (*local_error && fn != NULL) {
+							for (int i = 0; i < fn->n_params; i++) {
+								free(fn->params[i]);
+							}
+							free(fn->params);
+							free(fn);
+						}
+					}
 
 
+					if (!*local_error) {
+						expect(RIGHT_PAREN, RIGHT_PAREN, toks->tokens[toks->idx], toks->tokens[toks->idx], toks, src, STRUCT, FUNCTION, local_error, global_error, "expected a ')'");
+					}
 
 
+					// RETURN TYPE
+					if (!*local_error) {
+						expect(ARROW, ARROW, toks->tokens[toks->idx], toks->tokens[toks->idx], toks, src, STRUCT, FUNCTION, local_error, global_error, "expected a '->'");
+
+						if (!*local_error) {
+							int n_indirect = 0;
+							struct token* ret_type = toks->tokens[toks->idx];
+							expect(IDENTIFIER, VOID, ret_type, ret_type, toks, src, STRUCT, FUNCTION, local_error, global_error, "invalid return type");
+
+							if (!*local_error) {
+								tok = toks->tokens[toks->idx];
+								while (tok->type == '*') {
+									n_indirect++;
+									tok = toks->tokens[++toks->idx];
+								}
+							}
+
+							if (!*global_error) {
+								fn->ret_type = ret_type;
+								fn->n_indirect = n_indirect;
+							}
+						}
+					}
+
+					// BODY
+
+					struct stmt* body = parse_stmt(toks, src, local_error, global_error, EXPECT_BLOCK);
+
+					if (!*global_error) {
+						fn->body = body;
+						stmt = malloc(sizeof(struct stmt));
+						stmt->content = fn;
+						stmt->type = _STRUCT;
+					}
                 }
-
-
             }
         }
 		break;
