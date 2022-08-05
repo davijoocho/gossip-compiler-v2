@@ -86,11 +86,15 @@ void print_error(struct token* err_token, struct tokens* toks, char* src, char* 
 	int beg_idx = 0;
 	int end_idx = 0;
 	int skip = 4;
+    int indicator = err_token->start_idx;
 
 	if (err_token->type == EOFF) {
-		skip = 6;
+		skip = 5;
 		err_token = toks->tokens[toks->idx - 1];
+        indicator = err_token->end_idx;
 	} 
+
+
 
 	printf(ANSI_COLOR_RED "ERROR " ANSI_COLOR_RESET "(LINE %d): %s\n", err_token->line, err_msg);
 
@@ -111,7 +115,7 @@ void print_error(struct token* err_token, struct tokens* toks, char* src, char* 
 	}
 	fputc('\n', stdout);
 
-	for (int i = 0; i < err_token->start_idx - beg_idx + skip; i++) {
+	for (int i = 0; i < indicator - beg_idx + skip; i++) {
 		fputc(' ', stdout);
 	}
 	printf(ANSI_COLOR_GREEN "^" ANSI_COLOR_RESET "\n");
@@ -232,6 +236,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
                         
                         // UNCLOSED 
+                        tok = toks->tokens[toks->idx];
                         expect(RIGHT_BRACE, RIGHT_BRACE, tok, left_brace, toks, src, EOFF, EOFF, local_error, global_error, "unclosed '{'");
 
 
@@ -276,7 +281,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
 					// PARAMETERS
                     tok = toks->tokens[toks->idx];
-                    if (tok->type != RIGHT_PAREN) {
+                    if (tok->type != RIGHT_PAREN && tok->type != EOFF) {
                         int is_comma = 0;
                         do {
                             is_comma = 0;
@@ -293,7 +298,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
 									if (!*local_error) {
 										tok = toks->tokens[toks->idx];
-										while (tok->type == '*') {
+										while (tok->type == STAR) {
 											n_indirect++;
 											tok = toks->tokens[++toks->idx];
 										}
@@ -329,6 +334,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 					}
 
 
+
 					if (!*local_error) {
 						expect(RIGHT_PAREN, RIGHT_PAREN, toks->tokens[toks->idx], toks->tokens[toks->idx], toks, src, STRUCT, FUNCTION, local_error, global_error, "expected a ')'");
 					}
@@ -345,7 +351,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
 							if (!*local_error) {
 								tok = toks->tokens[toks->idx];
-								while (tok->type == '*') {
+								while (tok->type == STAR) {
 									n_indirect++;
 									tok = toks->tokens[++toks->idx];
 								}
@@ -359,8 +365,11 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 					}
 
 					// BODY
+                    struct stmt* body = NULL;
+                    if (!*local_error) {
+                        body = parse_stmt(toks, src, local_error, global_error, EXPECT_BLOCK);
+                    }
 
-					struct stmt* body = parse_stmt(toks, src, local_error, global_error, EXPECT_BLOCK);
 
 					if (!*global_error) {
 						fn->body = body;
