@@ -145,11 +145,19 @@ void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct tok
 
 // blocks panic to '}'
 
+// local_error needs to reset
+
 struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* global_error, int expect_block) {
 	struct token* tok = toks->tokens[toks->idx];
 	struct stmt* stmt = NULL;
+    *local_error = 0;
 
-	// if expect_block
+    if (expect_block) {
+        expect(LEFT_BRACE, LEFT_BRACE, tok, tok, toks, src, IDENTIFIER, FUNCTION);
+        if (!*local_error) {
+            return NULL;
+        }
+    }
 
 	switch (tok->type) {
 
@@ -367,6 +375,7 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 					// BODY
                     struct stmt* body = NULL;
                     if (!*local_error) {
+                        printf("here\n");
                         body = parse_stmt(toks, src, local_error, global_error, EXPECT_BLOCK);
                     }
 
