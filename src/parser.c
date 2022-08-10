@@ -4,6 +4,8 @@
 #include "parser.h"
 
 
+// DONT SUPPORT STACK/ LITERAL ARRAYS YET 
+
 
 
 
@@ -30,7 +32,7 @@ void free_stmt(struct stmt* stmt) {
 
 
 
-// TODO
+// TODO 5
 void free_expr(struct expr* expr) {
 }
 
@@ -96,7 +98,7 @@ void print_error(struct token* err_token, struct tokens* toks, char* src, char* 
 
 
 
-	printf(ANSI_COLOR_RED "ERROR " ANSI_COLOR_RESET "(LINE %d): %s\n", err_token->line, err_msg);
+	printf(BOLD ANSI_COLOR_RED "ERROR "  ANSI_COLOR_RESET BOLD "(LINE %d): %s\n", err_token->line, err_msg);
 
 	// find index to beginning of line with error
 	while (line != err_token->line) {
@@ -144,7 +146,6 @@ void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct tok
 
 
 // blocks panic to '}'
-
 // local_error needs to reset
 
 struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* global_error, int expect_block) {
@@ -153,8 +154,8 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
     *local_error = 0;
 
     if (expect_block) {
-        expect(LEFT_BRACE, LEFT_BRACE, tok, tok, toks, src, IDENTIFIER, FUNCTION);
-        if (!*local_error) {
+        expect(LEFT_BRACE, LEFT_BRACE, tok, tok, toks, src, IDENTIFIER, FUNCTION, local_error, global_error, "expected a '{'");
+        if (*local_error) {
             return NULL;
         }
     }
@@ -264,9 +265,6 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 
 
 		case FUNCTION: {
-
-
-            // fn a(i32 a, ...) -> i64 { }
             toks->idx++;
             struct _function* fn = NULL;
             struct token* id = toks->tokens[toks->idx];
@@ -375,7 +373,6 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
 					// BODY
                     struct stmt* body = NULL;
                     if (!*local_error) {
-                        printf("here\n");
                         body = parse_stmt(toks, src, local_error, global_error, EXPECT_BLOCK);
                     }
 
@@ -391,24 +388,243 @@ struct stmt* parse_stmt(struct tokens* toks, char* src, int* local_error, int* g
         }
 		break;
 
-		case LEFT_BRACE:
+		case LEFT_BRACE: {
+            struct token* left_brace = tok;
+            if (!expect_block) {
+                print_error(left_brace, toks, src, "invalid placement of '{'");
+                panic(toks, RIGHT_BRACE, RIGHT_BRACE, local_error, global_error);
+
+                tok = toks->tokens[toks->idx];
+                if (tok->type != RIGHT_BRACE) {
+                    print_error(left_brace, toks, src, "unclosed '{'");
+                }
+                return NULL;
+            }
+
+            struct _block* blk = NULL;
+            if (!*global_error) {
+                blk = malloc(sizeof(struct _block));
+                blk->stmts = malloc(sizeof(struct stmt*) * 16);
+                blk->n_stmts = 0;
+                blk->capacity = 16;
+            }
+
+            tok = toks->tokens[toks->idx];
+            if (tok->type != RIGHT_BRACE && tok->type != EOFF) {
+                do {
+                    struct stmt* parsed_stmt = parse_stmt(toks, src, local_error, global_error, DONT_EXPECT_BLOCK);
+                    if (!*global_error) {
+                        if (blk->n_stmts == blk->capacity) {
+                            blk->stmts = realloc(blk->stmts, sizeof(struct stmt*) * blk->capacity * 2);
+                            blk->capacity *= 2;
+                        }
+
+                        blk->stmts[blk->n_stmts++] = parsed_stmt;
+                    }
+                } while (tok->type != RIGHT_BRACE && tok->type != EOFF);
+            }
+            expect(RIGHT_BRACE, RIGHT_BRACE, tok, left_brace, toks, src, EOFF, EOFF, local_error, global_error, "unclosed '{'");
+
+            if (*local_error && blk != NULL) {
+                for (int i = 0; i < blk->n_stmts; i++) {
+                    free_stmt(blk->stmts[i]);
+                }
+                free(blk);
+            }
+
+            if (!*global_error) {
+                stmt = malloc(sizeof(struct stmt));
+                stmt->content = blk;
+                stmt->type = _BLOCK;
+            }
+        }
 		break;
 
-		case LET:
+        // TODO 4
+		case LET: {
+            toks->idx++;
+            struct _assign* assign = NULL;
+
+            struct expr* lhv = parse_expr(toks, 0, src, local_error, global_error);
+
+
+
+
+        }
+
+            /*
+                struct expr* lhv = parse_expr(...);
+                if (!*local_error) {
+                    expect(
+                }
+
+
+
+                expect(ASSIGN)
+                struct expr* rhv = parse_expr(...);
+                expect(SEMI_COLON);
+                if (!*global_error) {
+                    assign->rhv = rhv
+                    assign->lhv = lhv
+                    struct->content = assign
+                    ...
+                }
+                struct _assign* assign = malloc(sizeof(struct _assign));
+            */
+        }
 		break;
 
 		case DECL:
+        // this must be either stack array or id token -> can be done normally with tokens (LHV)
+        // no stack struct or array
 		break;
 
 		case IDENTIFIER:
 		break;
 
-		default:
+        case IF:
+        // ELSE ELSE IF
+        case WHILE:
+        case RETURN:
 
+		default: {
+            print_error(tok, toks, src, "invalid statement");
+            panic(toks, C8, FUNCTION, local_error, global_error);
+        }
 		break;
 	}
 
 
 	return stmt;
 }
+
+
+
+struct expr* parse_nud(struct tokens* toks, struct token* tok, char* src, int* local_error, int* global_error) {
+    struct expr* expr = NULL;
+
+    switch (tok->type) {
+        case BIT_NOT:
+        case LOG_NOT:
+        case BIT_AND:
+        case STAR: {
+            toks->idx++;
+            struct unary* unary = NULL;
+            struct expr* right = parse_expr(toks, 0, src, local_error, global_error);
+
+            if (!*global_error) {
+                unary = malloc(sizeof(struct unary));
+                unary->op = tok;
+                unary->right = right;
+
+                expr = malloc(sizeof(struct expr));
+                expr->type = UNARY;
+                expr->content = unary;
+            }
+        }
+        break;
+
+        case CHARACTER:
+        case INTEGER:
+        case LONG:
+        case FLOAT:
+        case DOUBLE:
+        case STRING_LITERAL:
+        case NONE: {
+            toks->idx++;
+            if (!*global_error) {
+                struct literal* literal = malloc(sizeof(struct literal));
+                literal->value = tok;
+                expr = malloc(sizeof(struct expr));
+                expr->type = LITERAL;
+                expr->content = literal;
+            }
+        }
+        break;
+
+
+        case LEFT_PAREN: {
+            toks->idx++;
+            struct expr* group = parse_expr(toks, 0, local_error, global_error);
+            if (!*local_error) {
+                // this is a problem.
+                expect(RIGHT_PAREN, RIGHT_PAREN, toks->tokens[toks->idx], tok, toks, src, local_error, global_error, "expected a ')'");
+                if (!*global_error) {
+                    struct unary* unary = malloc(sizeof(struct unary));
+                    unary->op = tok;
+                    unary->right = group;
+
+                    expr = malloc(sizeof(struct expr));
+                    expr->type = UNARY;
+                    expr->content = group
+                }
+            }
+
+            
+
+
+            // either a { or 
+            // if () , while (), call (),  F
+            // to the next statement?
+
+            // what do I panic to?
+            // else  it would have panicked to a terminating symbol
+            // in the case of if-stmt, error in condition errors to ) but then what does the if error to ?? to left brace?? yea it does because it is still part of the "stmt"
+        }
+        break;
+
+
+
+        case LT: // type-cast
+        break;
+
+        case CHARACTER:
+        case INTEGER:
+        case LONG:
+        case FLOAT:
+        case DOUBLE:
+        case STRING_LITERAL:
+        case NONE:
+        break;
+
+        case IDENTIFIER:
+        // call
+        // variable
+        break;
+
+
+        case LEFT_BRACE:
+        // array literal - dont attempt for now
+        break;
+
+        default:
+        break;
+    }
+
+
+    return expr;
+}
+
+
+// TODO 2
+struct expr* parse_led(struct expr* left, struct tokens* toks, struct token* operator, char* src, int* local_error, int* global_error) {
+}
+
+// TODO 3
+struct expr* parse_expr(struct tokens* toks, int rbp, char* src, int* local_error, int* global_error) {
+    struct expr* left = parse_nud(toks, toks->tokens[toks->idx], src, local_error, global_error);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
 

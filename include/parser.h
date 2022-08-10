@@ -7,7 +7,7 @@
 
 #include "lexer.h"
 
-
+#define BOLD "\x1B[1m"
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
@@ -50,6 +50,7 @@ struct binary {
 struct unary {
 	struct token* op;
 	struct expr* right;
+    int n_indirect;       // for type casts
 };
 
 struct literal {
@@ -92,6 +93,7 @@ struct stmt {
 struct _block {
 	struct stmt** stmts;
 	int n_stmts;
+    int capacity;
 };
 
 struct _struct {
@@ -162,7 +164,6 @@ struct program {
 struct program* syntax_analysis(struct tokens* tokens, char* src);
 void print_error(struct token* err_token, struct tokens* toks, char* src, char* err_msg);
 void panic(struct tokens* toks, enum token_type lbnd, enum token_type ubnd, int* local_error, int* global_error);
-
 void expect(enum token_type expect_lbnd, enum token_type expect_ubnd, struct token* cur_tok, struct token* err_token, struct tokens* toks, char* src, 
 	enum token_type err_lbnd, enum token_type err_ubnd, int* local_error, int* global_error, char* err_msg);
 
